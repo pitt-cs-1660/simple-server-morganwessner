@@ -15,11 +15,13 @@ FROM python:3.12-slim
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:${PATH}"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
 
 WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 COPY cc_simple_server/ ./cc_simple_server/
+COPY tests/ ./tests/
 
 RUN useradd -m appuser
 RUN chown -R appuser:appuser /app
