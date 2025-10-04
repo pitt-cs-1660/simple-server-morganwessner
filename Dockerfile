@@ -1,35 +1,35 @@
-# Build stage
 FROM python:3.12 AS builder
 
+# Install uv (modern fast package manager for Python)
 RUN pip install uv
 
+# Set working directory
 WORKDIR /app
 
-COPY pyproject.toml .
+# Copy dependency file(s)
+COPY pyproject.toml ./
 
-# Create virtual environment and install dependencies without sourcing
-RUN uv venv /venv && uv pip install -e .
+# Create a virtual environment and install dependencies inside it
+RUN uv venv .venv && \
+    .venv/bin/uv pip install -e . --no-cache-dir
 
-# Copy application source code (including tests)
-COPY . .
 
-# Final stage
 FROM python:3.12-slim
 
+# Set working directory
 WORKDIR /app
 
-# Copy virtual environment and application source code, including tests
-COPY --from=builder /venv /venv
-COPY --from=builder /app/tests ./tests
-COPY --from=builder /app .
+# Copy the virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
-# Create a non-root user
+# Copy source code
+COPY . .
+
+# Create a non-root user for security
 RUN useradd -m appuser
 USER appuser
 
-# Set PATH to prefer virtual environment binaries
-ENV PATH="/venv/bin:$PATH"
-
+# Expose FastAPI default port
 EXPOSE 8000
 
-CMD ["uvicorn", "cc_simple_server.server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
