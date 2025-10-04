@@ -1,35 +1,29 @@
-FROM python:3.12-slim AS builder
+FROM python:3.12 AS builder
 
+# Copy uv binaries for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-#set working directory
 WORKDIR /app
 
-#install uv
-RUN pip install uv
-
 COPY pyproject.toml ./
-RUN uv sync --no-install-project --no-editable
 
-COPY . ./
-
-#RUN uv sync --no-editable --no-dev --locked
+RUN uv venv && \
+    uv sync --no-install-project --no-editable
 
 FROM python:3.12-slim
 
-#set working directory
+ENV VIRTUAL_ENV=/app/.venv
+ENV PATH="/app/.venv/bin:${PATH}"
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
-COPY --from=builder --chown=appuser:appuser /app /app
+COPY --from=builder /app/.venv /app/.venv
+COPY cc_simple_server/ ./cc_simple_server/
 
 RUN useradd -m appuser
+RUN chown -R appuser:appuser /app
 USER appuser
-
-ENV VIRTUAL_ENV=/app/.venv
-ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
