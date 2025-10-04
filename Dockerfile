@@ -1,35 +1,36 @@
-FROM python:3.12 AS builder
+FROM python:3.12-slim AS builder
 
-# Install uv (modern fast package manager for Python)
-RUN pip install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Set working directory
+#set working directory
 WORKDIR /app
 
-# Copy dependency file(s)
+#install uv
+RUN pip install uv
+
 COPY pyproject.toml ./
+RUN uv sync --no-install-project --no-editable
 
-# Create a virtual environment and install dependencies inside it
-RUN uv venv .venv && \
-    .venv/bin/uv pip install -e . --no-cache-dir
+COPY . ./
 
+#RUN uv sync --no-editable --no-dev --locked
 
 FROM python:3.12-slim
 
-# Set working directory
+#set working directory
 WORKDIR /app
 
-# Copy the virtual environment from builder
-COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+COPY --from=builder --chown=appuser:appuser /app /app
 
-# Copy source code
-COPY . .
-
-# Create a non-root user for security
 RUN useradd -m appuser
 USER appuser
 
-# Expose FastAPI default port
+ENV VIRTUAL_ENV=/app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 EXPOSE 8000
 
-CMD ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "cc_simple_server.server:app", "--host", "0.0.0.0", "--port", "8000"]
